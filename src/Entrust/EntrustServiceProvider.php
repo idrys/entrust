@@ -9,6 +9,7 @@
  */
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\View\Compilers\BladeCompiler;
 
 class EntrustServiceProvider extends ServiceProvider
 {
@@ -33,9 +34,21 @@ class EntrustServiceProvider extends ServiceProvider
 
         // Register commands
         $this->commands('command.entrust.migration');
-        
-        // Register blade directives
-        $this->bladeDirectives();
+
+        // Check if Blade is defined
+
+        try {
+            $bladeCompiler = $this->app->make('blade.compiler');
+
+            // Register blade directives
+            $this->bladeDirectives($bladeCompiler);
+        } catch (\Exception $e) {
+            if ($e instanceof \ReflectionException) {
+                // Blade is not defined, probably we are in Lumen environment
+            } else {
+                throw new \RuntimeException($e->getMessage());
+            }
+        }
     }
 
     /**
@@ -57,32 +70,32 @@ class EntrustServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    private function bladeDirectives()
+    private function bladeDirectives(BladeCompiler $bladeCompiler)
     {
         // Call to Entrust::hasRole
-        \Blade::directive('role', function($expression) {
+        $bladeCompiler->directive('role', function($expression) {
             return "<?php if (\\Entrust::hasRole{$expression}) : ?>";
         });
 
-        \Blade::directive('endrole', function($expression) {
+        $bladeCompiler->directive('endrole', function($expression) {
             return "<?php endif; // Entrust::hasRole ?>";
         });
 
         // Call to Entrust::can
-        \Blade::directive('permission', function($expression) {
+        $bladeCompiler->directive('permission', function($expression) {
             return "<?php if (\\Entrust::can{$expression}) : ?>";
         });
 
-        \Blade::directive('endpermission', function($expression) {
+        $bladeCompiler->directive('endpermission', function($expression) {
             return "<?php endif; // Entrust::can ?>";
         });
 
         // Call to Entrust::ability
-        \Blade::directive('ability', function($expression) {
+        $bladeCompiler->directive('ability', function($expression) {
             return "<?php if (\\Entrust::ability{$expression}) : ?>";
         });
 
-        \Blade::directive('endability', function($expression) {
+        $bladeCompiler->directive('endability', function($expression) {
             return "<?php endif; // Entrust::ability ?>";
         });
     }
@@ -97,7 +110,7 @@ class EntrustServiceProvider extends ServiceProvider
         $this->app->bind('entrust', function ($app) {
             return new Entrust($app);
         });
-        
+
         $this->app->alias('entrust', 'Zizaco\Entrust\Entrust');
     }
 
